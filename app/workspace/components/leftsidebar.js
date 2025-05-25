@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
 import { Upload, Settings, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
-import o from '../../public/JdCharts.png';
+import o from '../../../public/JdCharts.png';
 
 export default function LeftSidebar({ fileName, setFileName, columns, setColumns }) {
   const [activeTab, setActiveTab] = useState('files');
