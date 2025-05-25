@@ -9,14 +9,17 @@ export default function Workspace() {
   const [viewBox, setViewBox] = useState({
     x: 0,
     y: 0,
-    width: 1000,
-    height: 600,
+    width: 1500,
+    height: 900,
   });
-
   const [dragEnabled, setDragEnabled] = useState(false);
+  const [chartType, setChartType] = useState('bar');
+  const [isPlaying, setIsPlaying] = useState(false); // Add isPlaying state
   const dragStart = useRef(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [fileName, setFileName] = useState('');
+  const [columns, setColumns] = useState([]);
 
-  // Zoom function: zoom in or out by adjusting viewBox width and height
   const zoom = (inOrOut) => {
     const factor = inOrOut === 'in' ? 0.8 : 1.25;
     setViewBox((prev) => {
@@ -28,16 +31,14 @@ export default function Workspace() {
     });
   };
 
-  // Reset zoom and position, disable drag
   const resetZoom = () => {
-    setViewBox({ x: 0, y: 0, width: 1000, height: 600 });
+    setViewBox({ x: 0, y: 0, width: 1500, height: 900 });
     setDragEnabled(false);
+    setIsPlaying(false); // Stop animation on reset
   };
 
-  // Enable or disable drag mode
   const toggleDrag = () => setDragEnabled((prev) => !prev);
 
-  // Mouse down event on SVG - start dragging if drag enabled
   const onMouseDown = (e) => {
     if (!dragEnabled) return;
     e.preventDefault();
@@ -45,56 +46,45 @@ export default function Workspace() {
       clientX: e.clientX,
       clientY: e.clientY,
       viewBoxX: viewBox.x,
-      viewBoxY: viewBox.y
+      viewBoxY: viewBox.y,
     };
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  // Mouse move - calculate delta and update viewBox x and y
   const onMouseMove = (e) => {
     if (!dragStart.current) return;
-
     const dx = e.clientX - dragStart.current.clientX;
     const dy = e.clientY - dragStart.current.clientY;
-
-    // Calculate SVG coordinate system delta based on viewBox width/height and SVG pixel size
-    // Assume SVG width and height in px is 1000 x 600 (same as initial viewBox)
-    // To be accurate, use actual SVG element size (can be improved)
-
-    const svgPixelWidth = 1000;  // If your SVG container width is fixed 1000px
-    const svgPixelHeight = 600;  // If your SVG container height is fixed 600px
-
-    // Convert pixel drag to viewBox coordinate shift (inversed because dragging left moves viewBox right)
+    const sidebarWidth = isSidebarOpen ? 240 : 0;
+    const rightSidebarWidth = 280;
+    const svgPixelWidth = window.innerWidth - sidebarWidth - rightSidebarWidth;
+    const svgPixelHeight = window.innerHeight;
     const xRatio = viewBox.width / svgPixelWidth;
     const yRatio = viewBox.height / svgPixelHeight;
-
-    setViewBox((prev) => ({
-      ...prev,
-      x: dragStart.current.viewBoxX - dx * xRatio,
-      y: dragStart.current.viewBoxY - dy * yRatio,
-    }));
+    setViewBox((prev) => {
+      let newX = dragStart.current.viewBoxX + dx * xRatio;
+      let newY = dragStart.current.viewBoxY + dy * yRatio;
+      const maxX = viewBox.width / 2;
+      const minX = -viewBox.width / 2;
+      const maxY = viewBox.height / 2;
+      const minY = -viewBox.height / 2;
+      newX = Math.max(minX, Math.min(maxX, newX));
+      newY = Math.max(minY, Math.min(maxY, newY));
+      return { ...prev, x: newX, y: newY };
+    });
   };
 
-  // Mouse up - stop dragging
   const onMouseUp = () => {
     dragStart.current = null;
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
   };
 
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // Move the file state here
-  const [fileName, setFileName] = useState('');
-  const [columns, setColumns] = useState([]);
-
   return (
     <div className="flex h-screen w-screen">
-      {/* Left Sidebar */}
       {isSidebarOpen && (
-        <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
+        <aside className="relative w-60 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
           <LeftSidebar
             fileName={fileName}
             setFileName={setFileName}
@@ -103,43 +93,67 @@ export default function Workspace() {
           />
         </aside>
       )}
-
-      {/* Main Content */}
-      <main className="flex-1 bg-white transition-all duration-300 flex flex-col">
+      <main className=" relative flex-1 bg-white transition-all duration-300 flex flex-col overflow-hidden">
         <div className="p-2">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="bg-gray-100 text-gray-600 p-2 rounded-full hover:bg-gray-200 transition"
+            className=" bg-gray-100 text-gray-600 p-2 rounded-full hover:bg-gray-200 transition"
             title={isSidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
           >
             {isSidebarOpen ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               </svg>
             )}
           </button>
         </div>
-
         <div className="relative w-full h-screen">
-          <ZoomableCanvas viewBox={viewBox} onMouseDown={onMouseDown} dragEnabled={dragEnabled} />
+          <ZoomableCanvas
+            viewBox={viewBox}
+            onMouseDown={onMouseDown}
+            dragEnabled={dragEnabled}
+            chartType={chartType}
+            isPlaying={isPlaying} // Pass isPlaying
+          />
           <BottomToolbar
             onZoom={zoom}
             onReset={resetZoom}
             dragEnabled={dragEnabled}
             toggleDrag={toggleDrag}
+            setChartType={setChartType}
+            setIsPlaying={setIsPlaying} // Pass setIsPlaying
           />
         </div>
       </main>
-
-      {/* Right Sidebar */}
       <aside className="w-[280px] bg-white border-l border-gray-200 sticky top-0 h-screen flex flex-col items-center py-4">
         <Rightsidebar />
       </aside>
-
     </div>
   );
 }

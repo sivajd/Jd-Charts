@@ -1,19 +1,46 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FaChartBar, FaPlay, FaPause, FaSearchPlus, FaSearchMinus, FaExpand, FaFileExport, FaHandPaper } from 'react-icons/fa';
+import {
+  FaChartBar,
+  FaPlay,
+  FaPause,
+  FaSearchPlus,
+  FaSearchMinus,
+  FaExpand,
+  FaFileExport,
+  FaHandPaper,
+} from 'react-icons/fa';
 import { IoMdArrowDropdown } from 'react-icons/io';
+import * as echarts from 'echarts';
 
-export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [chartType, setChartType] = useState('Line');
+export default function BottomToolbar({
+  onZoom,
+  onReset,
+  dragEnabled,
+  toggleDrag,
+  setChartType,
+  setIsPlaying, // Add prop to update parent state
+}) {
+  const [isPlaying, setLocalIsPlaying] = useState(false);
+  const [chartType, setLocalChartType] = useState('Bar');
   const [showChartOptions, setShowChartOptions] = useState(false);
   const chartDropdownRef = useRef(null);
 
   const chartOptions = ['Line', 'Bar', 'Pie'];
 
+  // Sync chartType with parent
+  useEffect(() => {
+    setChartType(chartType.toLowerCase());
+  }, [chartType, setChartType]);
+
+  // Sync isPlaying with parent
+  useEffect(() => {
+    setIsPlaying(isPlaying);
+  }, [isPlaying, setIsPlaying]);
+
   // Toggle Play/Pause
-  const togglePlay = () => setIsPlaying((prev) => !prev);
+  const togglePlay = () => setLocalIsPlaying((prev) => !prev);
 
   // Spacebar for play/pause
   useEffect(() => {
@@ -41,10 +68,27 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Export chart
+  const handleExport = () => {
+    const chartDom = document.querySelector('.bg-white');
+    if (chartDom && chartDom.chartInstance) {
+      const chartInstance = chartDom.chartInstance;
+      const url = chartInstance.getDataURL({
+        type: 'png',
+        pixelRatio: 2,
+        backgroundColor: '#fff',
+      });
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'chart.png';
+      a.click();
+    } else {
+      console.error('Chart instance not found for export');
+    }
+  };
+
   return (
     <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl rounded-xl p-3 flex items-center gap-3 border border-gray-200 z-50">
-
-      {/* Chart Dropdown */}
       <div ref={chartDropdownRef} className="relative">
         <button
           onClick={() => setShowChartOptions(!showChartOptions)}
@@ -53,14 +97,13 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
         >
           <FaChartBar /> {chartType} <IoMdArrowDropdown />
         </button>
-
         {showChartOptions && (
           <div className="absolute bottom-full mb-2 left-0 bg-white border rounded shadow-md animate-fade-in-up z-10">
             {chartOptions.map((option) => (
               <div
                 key={option}
                 onClick={() => {
-                  setChartType(option);
+                  setLocalChartType(option);
                   setShowChartOptions(false);
                 }}
                 className={`px-4 py-2 hover:bg-gray-100 cursor-pointer whitespace-nowrap ${
@@ -73,8 +116,6 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
           </div>
         )}
       </div>
-
-      {/* Play / Pause Button */}
       <button
         onClick={togglePlay}
         className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded"
@@ -82,8 +123,6 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
       >
         {isPlaying ? <FaPause /> : <FaPlay />}
       </button>
-
-      {/* Zoom In */}
       <button
         onClick={() => onZoom('in')}
         className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded"
@@ -91,8 +130,6 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
       >
         <FaSearchPlus />
       </button>
-
-      {/* Zoom Out */}
       <button
         onClick={() => onZoom('out')}
         className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded"
@@ -100,17 +137,15 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
       >
         <FaSearchMinus />
       </button>
-
-      {/* Hand Tool Toggle */}
       <button
         onClick={toggleDrag}
-        className={`bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded ${dragEnabled ? 'bg-blue-200 text-blue-700' : ''}`}
+        className={`bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded ${
+          dragEnabled ? 'bg-blue-200 text-blue-700' : ''
+        }`}
         title="Toggle Hand Tool (Drag to move chart)"
       >
         <FaHandPaper />
       </button>
-
-      {/* Reset / Fit to page */}
       <button
         onClick={onReset}
         className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded"
@@ -118,9 +153,8 @@ export default function BottomToolbar({ onZoom, onReset, dragEnabled, toggleDrag
       >
         <FaExpand />
       </button>
-
-      {/* Export Button (no handler yet) */}
       <button
+        onClick={handleExport}
         className="bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded"
         title="Export"
       >
